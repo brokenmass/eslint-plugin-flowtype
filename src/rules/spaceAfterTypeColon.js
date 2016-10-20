@@ -178,6 +178,43 @@ const objectTypePropertyEvaluator = (context) => {
   };
 };
 
+const objectTypeIndexerEvaluator = (context) => {
+  const {always} = parseOptions(context);
+
+  const sourceCode = context.getSourceCode();
+
+  return (objectTypeIndexer) => {
+    // babel-eslint deletes ObjectTypeIndexer's id
+    // have to check the raw tokens instead
+    // type X = { [a: b]: c }
+    //             ^
+
+    const colonToken = sourceCode.getTokenBefore(objectTypeIndexer.key)
+
+    const spaces = objectTypeIndexer.key.start - colonToken.end
+
+    if (always && spaces > 1) {
+      context.report({
+        fix: spacingFixers.stripSpacesAfter(colonToken, spaces - 1),
+        message: 'There must be 1 space after type annotation colon.',
+        node: objectTypeIndexer
+      });
+    } else if (always && spaces === 0) {
+      context.report({
+        fix: spacingFixers.addSpaceAfter(colonToken),
+        message: 'There must be a space after type annotation colon.',
+        node: objectTypeIndexer
+      });
+    } else if (!always && spaces > 0) {
+      context.report({
+        fix: spacingFixers.stripSpacesAfter(colonToken, spaces),
+        message: 'There must be no space after type annotation colon.',
+        node: objectTypeIndexer
+      });
+    }
+  };
+}
+
 const typeCastEvaluator = (context) => {
   const sourceCode = context.getSourceCode();
   const {always} = parseOptions(context);
@@ -213,6 +250,7 @@ export default (context) => {
     ...functionEvaluators(context),
     ClassProperty: propertyEvaluator(context, 'class property'),
     ObjectTypeProperty: objectTypePropertyEvaluator(context),
+    ObjectTypeIndexer: objectTypeIndexerEvaluator(context),
     TypeCastExpression: typeCastEvaluator(context)
   };
 };
